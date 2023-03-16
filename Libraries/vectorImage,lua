@@ -1,0 +1,188 @@
+local gui = require("gui")
+local screen = require("screen")
+local fs = require("filesystem")
+
+-----------------------------------------------------
+
+local vectorImage = {}
+function vectorImage.load(path)
+  if fs.exists(path) then
+    unpack(path)
+    return fs.readTable("/Temporary/lib")
+  else
+    return nil, "File does not exists"
+  end
+end
+
+function vectorImage.save(type, path)
+  fs.writeTable(type, "/Temporary/lib")
+  return pack(path)
+end
+
+local function canvasAddShape(canvas, x, y, type, ...)
+  local args = {...}
+  if type == "line" then
+    table.insert(canvas.shapes, {
+      type = type,
+      x = x,
+      y = y,
+      x1 = args[1],
+      y1 = args[2],
+      name = args[4],
+      color = args[3]
+    })
+  elseif type == "rectangle" then
+    table.insert(canvas.shapes, {
+      type = type,
+      x = x,
+      y = y,
+      width = args[1],
+      height = args[2],
+      name = args[4],
+      color = args[3]
+    })
+  elseif type == "ellipse" then
+    table.insert(canvas.shapes, {
+      type = type,
+      x = x,
+      y = y,
+      radiusX = args[1],
+      radiusY = args[2],
+      name = args[4],
+      color = args[3]
+    })
+  end
+  
+  return canvas
+end
+
+local function canvasDraw(canvas)
+  local x, y = canvas.x, canvas.y
+  local shapes = canvas.shapes
+  local shape
+
+  for i = 1, #shapes do
+    shape = shapes[i]
+
+    if shape.type == "line" then
+      screen.drawLine(
+        x + shape.x - 1,
+        y + shape.y - 1,
+        x + shape.x1 - 1,
+        y + shape.y1 - 1,
+        shape.color,
+        0x0,
+        " "
+      )
+    elseif shape.type == "rectangle" then
+      screen.drawRectangle(
+        x + shape.x - 1,
+        y + shape.y - 1,
+        shape.width,
+        shape.height,
+        shape.color,
+        0xFFFFFF,
+        " "
+      )
+    elseif shape.type == "ellipse" then
+      screen.drawEllipse(
+        x + shape.x - 1,
+        y + shape.y - 1,
+        shape.radiusX,
+        shape.radiusY,
+        shape.color,
+        0xFFFFFF,
+        " "
+      )
+    end
+  end
+end
+
+local function saveShapes(canvas,path)
+  fs.writeTable(path,canvas.shapes)
+  return path
+end
+
+local function loadShapes(canvas, path)
+  canvas.shapes = fs.readTable(path)
+  return canvas.shapes
+end
+
+function vectorImage.loadShapes(path)
+  return fs.readTable(path)
+end
+
+function vectorImage.find(tablee,whattofind)
+  result = nil
+  for i = 1, #tablee do
+    if tablee[i] then
+      if tablee[i].name == whattofind then
+        result = {result = tablee[i], index = i}
+        break
+      end
+    end
+  end
+  return result or nil
+end
+
+local function lower(canvas, index)
+  if type(index) == 'number' or type(index) == 'double' then
+    if canvas.shapes[index + 1] then
+      local tmp = canvas.shapes[index + 1]
+      canvas.shapes[index+1] = canvas.shapes[index]
+      canvas.shapes[index] = tmp
+      return true
+    else
+      return nil, 'Cant go lower'
+    end
+  elseif type(index) == 'string' then
+    if canvas.shapes[vectorImage.find(canvas.shapes,index).index+1] then
+      local index = vectorImage.find(canvas.shapes,index).index
+      local tmp = canvas.shapes[index + 1]
+      canvas.shapes[index+1] = canvas.shapes[index]
+      canvas.shapes[index] = tmp
+      return true
+    else
+      return nil, 'Cant go lower'
+    end
+  end
+end
+local function upper(canvas, index)
+  if type(index) == 'number' or type(index) == 'double' then
+    if canvas.shapes[index - 1] then
+      local tmp = canvas.shapes[index - 1]
+      canvas.shapes[index-1] = canvas.shapes[index]
+      canvas.shapes[index] = tmp
+      return true
+    else
+      return nil, 'Cant go upper'
+    end
+  elseif type(index) == 'string' then
+    if canvas.shapes[vectorImage.find(canvas.shapes,index).index-1] then
+      local index = vectorImage.find(canvas.shapes,index).index
+      local tmp = canvas.shapes[index - 1]
+      canvas.shapes[index-1] = canvas.shapes[index]
+      canvas.shapes[index] = tmp
+      return true
+    else
+      return nil, 'Cant go upper'
+    end
+  end
+end
+
+function vectorImage.newCanvas(x, y, width, height,shapes)
+  local canvas = gui.object(x, y, width, height)
+  
+  canvas.shapes = shapes or {}
+
+  canvas.draw = canvasDraw
+  canvas.addShape = canvasAddShape
+  canvas.saveShapes = saveShapes
+  canvas.loadShapes = loadShapes
+  canvas.lower = lower
+  canvas.upper = upper
+
+  return canvas
+end
+
+return vectorImage
